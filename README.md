@@ -1,8 +1,12 @@
 run 
-```npm install   ```
+```
+npm install
+```
 
 then 
-  ``` node server.js```
+``` 
+node server.js
+```
 
 
 and the server is live 
