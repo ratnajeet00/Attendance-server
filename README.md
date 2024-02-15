@@ -1,48 +1,57 @@
-run 
+School Attendance System with WhatsApp Notifications
+This is a Node.js application for managing school attendance and sending WhatsApp notifications to parents using Twilio.
+
+Setup
+Prerequisites
+Before running the application, ensure you have the following installed:
+```
+Node.js
+MySQL
+Twilio Account
+```
+
+Installation
+Clone the repository:
+```
+git clone https://github.com/your-username/school-attendance-system.git
+cd school-attendance-system
+```
+
+Install dependencies:
 ```
 npm install
 ```
+Set up MySQL database:
 
-then 
-``` 
-node server.js
-```
-the You can port forword the site to a link using 
-```
-Ngrok
-```
+Create a MySQL database and update the pool configuration in app.js with your database details.
 
-and the server is live 
-
-
-the database setup quries are:
-
-setup database
-```
-create database cpp
-```
-
-table cretaion qurie:
-```
-CREATE TABLE attendance (
-    id INT PRIMARY KEY,
-    uid VARCHAR(255), -- Adjust the length as needed
-    name VARCHAR(255),
-    days_present INT,
-    days_absent INT,
-    username VARCHAR(255),
-    password VARCHAR(255),
-    attendance_date DATE,
-    phone_number VARCHAR(15) -- Assuming a basic phone number format
-);
+Run the SQL script provided in setup.sql to create the required table:
 
 ```
+mysql -u your-username -p your-database-name < setup.sql
+```
+Note: Make sure to replace your-username and your-database-name with your MySQL username and database name.
 
-this is the structure of data base table 
+Configure Twilio:
+
+Create a Twilio account and obtain your Account SID and Auth Token.
+
+Update the accountSid and authToken variables in app.js with your Twilio credentials.
+
+Replace twilioPhoneNumberWhatsApp with your Twilio WhatsApp number.
+
+Running the Application
 ```
-+----+-------------+----------+--------------+-------------+----------+----------+-----------------+--------------+
-| id | uid         | name     | days_present | days_absent | username | password | attendance_date | phone_number |
-+----+-------------+----------+--------------+-------------+----------+----------+-----------------+--------------+
-|  1 | 89e28316%0D | John Doe |            0 |           0 | NULL     | NULL     | NULL            | ------   |
-+----+-------------+----------+--------------+-------------+----------+----------+-----------------+--------------+
+npm start
 ```
+The server will start on``` http://localhost:3000.```
+
+Usage
+Open http://localhost:3000/addAttendance in your browser to access the attendance form.
+
+Use the provided form to mark attendance for students.
+
+The system will automatically send WhatsApp messages to parents of absent students at the end of each day.
+
+Contributors
+Ratnajeet Patil
