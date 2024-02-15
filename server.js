@@ -3,10 +3,18 @@ const bodyParser = require('body-parser');
 const mysql = require('mysql2');
 const ejs = require('ejs');
 const cron = require('node-cron');
+const twilio = require('twilio');
+const cors = require('cors'); 
 
 const app = express();
 const port = 3000;
 
+// Your Twilio credentials
+const accountSid = 'AC9c28751bdadd6ef878643bba4a9faf54';
+const authToken = '235c608d6e21a46f09d36512820d5617';
+const twilioClient = twilio(accountSid, authToken);
+
+app.use(cors()); 
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 
@@ -35,17 +43,50 @@ cron.schedule('59 23 * * *', () => {
   markAbsentUsers();
 });
 
-// Endpoint to mark absent users
-app.post('/markAbsentUsers', (req, res) => {
+
+
+// Endpoint to mark absent users and send WhatsApp messages to parents
+app.post('/markAbsentUsers', async (req, res) => {
   try {
-    // Query for users who haven't been marked present today
-    const absentQuery = 'UPDATE attendance SET days_absent = days_absent + 1 WHERE days_present = 0';
-    pool.query(absentQuery, (error, results) => {
+    // Query for users who were not marked present today
+    const absentQuery = `
+      SELECT uid, phone_number
+      FROM attendance
+      WHERE (attendance_date != CURDATE() OR attendance_date IS NULL)
+        AND days_present = 0
+        AND phone_number IS NOT NULL;
+    `;
+
+    pool.query(absentQuery, async (error, results) => {
       if (error) {
-        throw new Error('Error marking absent users');
+        throw new Error('Error fetching absent users');
       }
 
-      res.json({ success: true, message: 'Absent users marked successfully' });
+      // Log the results to inspect the phone numbers
+      console.log('Results:', results);
+
+      // Extract UIDs and phone numbers of absent students
+      const absentData = results.map(result => ({
+        uid: result.uid,
+        phone_number: result.phone_number,
+      }));
+
+      // Send WhatsApp messages to parents
+      for (const { uid, phone_number } of absentData) {
+        // Log the original phone number before formatting
+        console.log('Original Phone Number:', phone_number);
+
+        const formattedPhoneNumber = '+91' + phone_number.trim().replace(/\D/g, '');
+        const messageWhatsApp = `Dear parent, your child with UID ${uid} was absent from school today. Please contact the school for more information.`;
+
+        // Log the formatted phone number
+        console.log('Formatted Phone Number:', formattedPhoneNumber);
+
+        // Send WhatsApp message
+        await sendWhatsAppMessage(phone_number, messageWhatsApp);
+      }
+
+      res.json({ success: true, message: 'Absent users marked successfully. WhatsApp messages sent to parents.' });
     });
   } catch (error) {
     console.error('Error marking absent users:', error.message);
@@ -53,10 +94,28 @@ app.post('/markAbsentUsers', (req, res) => {
   }
 });
 
-// Route for the root path
-app.get('/', (req, res) => {
-  res.send('hello');
-});
+// Function to send WhatsApp message
+const sendWhatsAppMessage = async (originalPhoneNumber, message) => {
+  try {
+    // Remove non-numeric characters from the phone number
+    const formattedPhoneNumber = '+91' + originalPhoneNumber.replace(/\D/g, '');
+
+    const twilioPhoneNumberWhatsApp = 'whatsapp:+14155238886'; // Replace with your Twilio WhatsApp number
+    const toPhoneNumberWhatsApp = `whatsapp:${formattedPhoneNumber}`;
+    console.log('toPhoneNumberWhatsApp:', toPhoneNumberWhatsApp);
+
+    await twilioClient.messages.create({
+      body: message,
+      from: twilioPhoneNumberWhatsApp,
+      to: toPhoneNumberWhatsApp,
+    });
+
+    console.log(`WhatsApp message sent to ${formattedPhoneNumber}`);
+  } catch (error) {
+    console.error(`Error sending WhatsApp message to ${originalPhoneNumber}:`, error.message);
+  }
+};
+
 
 // Route to handle form submission and check attendance
 app.post('/attendance', (req, res) => {
@@ -68,35 +127,36 @@ app.post('/attendance', (req, res) => {
     if (uid && action) {
       console.log(`Received RFID data: ${uid}, Action: ${action}`);
 
-      if (action === 'check') {
-        // Increment days_present by 1 for the given UID
-        const updateQuery = 'UPDATE attendance SET days_present = days_present + 1 WHERE uid = ?';
-        pool.query(updateQuery, [uid], (error, results) => {
-          if (error) {
-            throw new Error('Error updating attendance');
-          }
+      const updateQuery = `
+        UPDATE attendance
+        SET days_present = days_present + 1,
+            attendance_date = CURDATE()
+        WHERE uid = ?;
+      `;
 
-          if (results.affectedRows > 0) {
-            res.json({ success: true, message: 'Attendance updated successfully' });
-          } else {
-            res.json({ success: false, message: 'Attendance not found for the given UID' });
-          }
-        });
-      } else {
-        // Increment days_absent by 1 for the given UID
-        const updateQuery = 'UPDATE attendance SET days_absent = days_absent + 1 WHERE uid = ?';
-        pool.query(updateQuery, [uid], (error, results) => {
-          if (error) {
-            throw new Error('Error updating attendance');
-          }
+      pool.query(updateQuery, [uid], (error, results) => {
+        if (error) {
+          throw new Error('Error updating attendance');
+        }
 
-          if (results.affectedRows > 0) {
-            res.json({ success: true, message: 'Attendance updated successfully' });
-          } else {
-            res.json({ success: false, message: 'Attendance not found for the given UID' });
-          }
-        });
-      }
+        if (results.affectedRows > 0) {
+          res.json({ success: true, message: 'Attendance updated successfully' });
+        } else {
+          // If no record is found for the given UID, insert a new record with the current date
+          const insertQuery = `
+            INSERT INTO attendance (uid, days_present, attendance_date)
+            VALUES (?, 1, CURDATE());
+          `;
+
+          pool.query(insertQuery, [uid], (insertError, insertResults) => {
+            if (insertError) {
+              throw new Error('Error inserting new attendance record');
+            }
+
+            res.json({ success: true, message: 'Attendance marked successfully' });
+          });
+        }
+      });
     } else {
       throw new Error('Invalid request: Missing UID or Action in the request body');
     }

@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <!-- ... (unchanged head section) ... -->
+</head>
+<body>
+
+  <h2>Attendance Management System</h2>
+
+  <form id="attendanceForm">
+    <!-- ... (unchanged form section) ... -->
+    <button type="button" onclick="markAttendance()">Submit</button>
+
+    <!-- New button for sending messages to parents -->
+    <button type="button" onclick="sendMessageToParents()">Send Message to Parents</button>
+  </form>
+
+  <h3>Attendance Records</h3>
+  <table id="attendanceTable">
+    <!-- ... (unchanged table section) ... -->
+  </table>
+
+  <script>
+    // ... (unchanged script section) ...
+
+    async function sendMessageToParents() {
+      try {
+        const response = await fetch('http://192.168.1.12:3000/markAbsentUsers', {
+          method: 'POST',
+        });
+
+        const result = await response.json();
+        alert(result.message);
+      } catch (error) {
+        console.error('Error sending message to parents:', error.message);
+        alert('Error sending message to parents. Please try again.');
+      }
+    }
+  </script>
+
+</body>
+</html>
