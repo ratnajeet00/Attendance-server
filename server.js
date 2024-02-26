@@ -10,8 +10,8 @@ const app = express();
 const port = 3000;
 
 // Your Twilio credentials
-const accountSid = 'AC9c28751bdadd6ef878643bba4a9faf54';
-const authToken = '235c608d6e21a46f09d36512820d5617';
+const accountSid = 'ACc9d03d0d7851bafaab1b591bb2bd206b';
+const authToken = 'f8ac0b0c093fd621d93f7e7b6a4936df';
 const twilioClient = twilio(accountSid, authToken);
 
 app.use(cors()); 
