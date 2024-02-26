@@ -140,7 +140,18 @@ app.post('/attendance', (req, res) => {
         }
 
         if (results.affectedRows > 0) {
-          res.json({ success: true, message: 'Attendance updated successfully' });
+          const selectNameQuery = `
+            SELECT name FROM attendance WHERE uid = ?;
+          `;
+
+          pool.query(selectNameQuery, [uid], (selectError, selectResults) => {
+            if (selectError) {
+              throw new Error('Error retrieving name');
+            }
+
+            const name = selectResults.length > 0 ? selectResults[0].name : '';
+            res.json({ success: true, message: 'Attendance updated successfully', name });
+          });
         } else {
           // If no record is found for the given UID, insert a new record with the current date
           const insertQuery = `
@@ -153,7 +164,18 @@ app.post('/attendance', (req, res) => {
               throw new Error('Error inserting new attendance record');
             }
 
-            res.json({ success: true, message: 'Attendance marked successfully' });
+            const selectNameQuery = `
+              SELECT name FROM attendance WHERE uid = ?;
+            `;
+
+            pool.query(selectNameQuery, [uid], (selectError, selectResults) => {
+              if (selectError) {
+                throw new Error('Error retrieving name');
+              }
+
+              const name = selectResults.length > 0 ? selectResults[0].name : '';
+              res.json({ success: true, message: 'Attendance marked successfully', name });
+            });
           });
         }
       });
